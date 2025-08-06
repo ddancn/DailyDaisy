@@ -1,0 +1,44 @@
+package com.ddancn.dailydaisy.data.database
+
+import androidx.room.*
+import com.ddancn.dailydaisy.data.entity.Checkin
+import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
+import java.time.LocalDateTime
+
+/**
+ * 打卡记录数据访问对象
+ */
+@Dao
+interface CheckinDao {
+    
+    @Query("SELECT * FROM checkins WHERE habitId = :habitId ORDER BY checkinTime DESC")
+    fun getCheckinsByHabitId(habitId: Long): Flow<List<Checkin>>
+    
+    @Query("SELECT * FROM checkins WHERE habitId = :habitId AND date(checkinTime) = date(:date)")
+    suspend fun getCheckinsByHabitIdAndDate(habitId: Long, date: LocalDate): List<Checkin>
+    
+    @Query("SELECT COUNT(*) FROM checkins WHERE habitId = :habitId AND date(checkinTime) = date(:date)")
+    suspend fun getCheckinCountByHabitIdAndDate(habitId: Long, date: LocalDate): Int
+    
+    @Query("SELECT SUM(count) FROM checkins WHERE habitId = :habitId AND date(checkinTime) = date(:date)")
+    suspend fun getTotalCountByHabitIdAndDate(habitId: Long, date: LocalDate): Int?
+    
+    @Query("SELECT * FROM checkins WHERE habitId = :habitId AND checkinTime >= :startDate AND checkinTime <= :endDate ORDER BY checkinTime DESC")
+    suspend fun getCheckinsByHabitIdAndDateRange(habitId: Long, startDate: LocalDateTime, endDate: LocalDateTime): List<Checkin>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCheckin(checkin: Checkin): Long
+    
+    @Update
+    suspend fun updateCheckin(checkin: Checkin)
+    
+    @Delete
+    suspend fun deleteCheckin(checkin: Checkin)
+    
+    @Query("DELETE FROM checkins WHERE id = :checkinId")
+    suspend fun deleteCheckinById(checkinId: Long)
+    
+    @Query("DELETE FROM checkins WHERE habitId = :habitId")
+    suspend fun deleteCheckinsByHabitId(habitId: Long)
+} 
