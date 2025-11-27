@@ -11,7 +11,8 @@ import java.time.LocalDate
 data class HabitWithData(
     val habit: Habit,
     val isCheckedToday: Boolean = false,
-    val todayCheckinCount: Int = 0
+    val todayCheckinCount: Int = 0,
+    val totalCheckinCount: Int = 0
 ) {
     /**
      * 获取今日完成率

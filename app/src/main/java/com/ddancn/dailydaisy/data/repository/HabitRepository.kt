@@ -5,12 +5,15 @@ import com.ddancn.dailydaisy.data.database.CheckinDao
 import com.ddancn.dailydaisy.data.entity.Habit
 import com.ddancn.dailydaisy.data.entity.Checkin
 import com.ddancn.dailydaisy.data.model.HabitWithData
+import com.ddancn.dailydaisy.data.entity.HabitFrequency
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.temporal.TemporalAdjusters
 
 /**
  * 习惯仓库类
@@ -31,26 +34,64 @@ class HabitRepository(
     suspend fun getHabitById(habitId: Long): Habit? {
         return habitDao.getHabitById(habitId)
     }
-    
-    // 获取习惯及其今日数据
-    fun getHabitsWithTodayData(): Flow<List<HabitWithData>> {
-        val today = LocalDate.now()
-        // 同时监听习惯列表和今日打卡记录的变化
+
+    // 获取习惯及其当前周期数据（根据频率统计不同时间段）
+    fun getHabitsWithCurrentPeriodData(): Flow<List<HabitWithData>> {
+        return getHabitsWithCurrentPeriodData(LocalDate.now())
+    }
+
+    // 获取习惯及其指定日期的周期数据（根据频率统计不同时间段）
+    fun getHabitsWithCurrentPeriodData(targetDate: LocalDate): Flow<List<HabitWithData>> {
+        
+        // 计算指定日期所在周的开始和结束时间（周一到周日）
+        val weekStart = targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay()
+        val weekEnd = weekStart.plusDays(7)
+        
+        // 计算指定日期所在月的开始和结束时间
+        val monthStart = targetDate.with(TemporalAdjusters.firstDayOfMonth()).atStartOfDay()
+        val monthEnd = monthStart.plusMonths(1)
+        
+        // 同时监听习惯列表和不同时间段的打卡记录
         return combine(
             habitDao.getActiveHabits(),
-            checkinDao.getTodayCheckins(today)
-        ) { habits, todayCheckins ->
-            // 创建习惯ID到打卡次数的映射
-            val checkinCountMap = todayCheckins
+            checkinDao.getTodayCheckins(targetDate),
+            checkinDao.getWeekCheckins(weekStart, weekEnd),
+            checkinDao.getMonthCheckins(monthStart, monthEnd),
+            checkinDao.getAllCheckins()
+        ) { habits, targetDateCheckins, weekCheckins, monthCheckins, allCheckins ->
+            // 创建习惯ID到打卡次数的映射（根据频率）
+            val dailyCountMap = targetDateCheckins
+                .groupBy { it.habitId }
+                .mapValues { (_, checkins) -> checkins.sumOf { it.count } }
+            
+            val weeklyCountMap = weekCheckins
+                .groupBy { it.habitId }
+                .mapValues { (_, checkins) -> checkins.sumOf { it.count } }
+            
+            val monthlyCountMap = monthCheckins
+                .groupBy { it.habitId }
+                .mapValues { (_, checkins) -> checkins.sumOf { it.count } }
+            
+            // 创建习惯ID到总打卡次数的映射
+            val totalCountMap = allCheckins
                 .groupBy { it.habitId }
                 .mapValues { (_, checkins) -> checkins.sumOf { it.count } }
             
             habits.map { habit ->
-                val todayCheckinCount = checkinCountMap[habit.id] ?: 0
+                val checkinCount = when (habit.frequency) {
+                    HabitFrequency.DAILY -> dailyCountMap[habit.id] ?: 0
+                    HabitFrequency.WEEKLY -> weeklyCountMap[habit.id] ?: 0
+                    HabitFrequency.MONTHLY -> monthlyCountMap[habit.id] ?: 0
+                    HabitFrequency.CUSTOM -> dailyCountMap[habit.id] ?: 0 // 自定义暂时按日统计
+                }
+                
+                val totalCount = totalCountMap[habit.id] ?: 0
+                
                 HabitWithData(
                     habit = habit,
-                    isCheckedToday = todayCheckinCount > 0,
-                    todayCheckinCount = todayCheckinCount
+                    isCheckedToday = checkinCount > 0,
+                    todayCheckinCount = checkinCount,
+                    totalCheckinCount = totalCount
                 )
             }
         }
@@ -73,16 +114,73 @@ class HabitRepository(
     
     // 打卡
     suspend fun checkin(habitId: Long, count: Int = 1, note: String? = null) {
+        checkin(habitId, LocalDateTime.now(), count, note)
+    }
+
+    // 打卡（指定时间）
+    suspend fun checkin(
+        habitId: Long,
+        checkinTime: LocalDateTime,
+        count: Int = 1,
+        note: String? = null
+    ) {
         val checkin = Checkin(
             habitId = habitId,
-            checkinTime = LocalDateTime.now(),
+            checkinTime = checkinTime,
             count = count,
             note = note
         )
         
         checkinDao.insertCheckin(checkin)
     }
-    
+
+    // 取消打卡（删除当前周期内最新的打卡记录）
+    suspend fun cancelCheckin(habitId: Long, frequency: HabitFrequency) {
+        cancelCheckin(habitId, frequency, LocalDate.now())
+    }
+
+    // 取消打卡（指定日期）
+    suspend fun cancelCheckin(habitId: Long, frequency: HabitFrequency, targetDate: LocalDate) {
+        // 获取习惯对象以获取自定义周期信息
+        val habit = habitDao.getHabitById(habitId) ?: return
+
+        val (startDate, endDate) = when (frequency) {
+            HabitFrequency.DAILY -> {
+                val dayStart = targetDate.atStartOfDay()
+                val dayEnd = dayStart.plusDays(1)
+                Pair(dayStart, dayEnd)
+            }
+
+            HabitFrequency.WEEKLY -> {
+                val weekStart =
+                    targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                        .atStartOfDay()
+                val weekEnd = weekStart.plusDays(7)
+                Pair(weekStart, weekEnd)
+            }
+
+            HabitFrequency.MONTHLY -> {
+                val monthStart =
+                    targetDate.with(TemporalAdjusters.firstDayOfMonth()).atStartOfDay()
+                val monthEnd = monthStart.plusMonths(1)
+                Pair(monthStart, monthEnd)
+            }
+
+            HabitFrequency.CUSTOM -> {
+                // 自定义暂时按日处理
+                val dayStart = targetDate.atStartOfDay()
+                val dayEnd = dayStart.plusDays(1)
+                Pair(dayStart, dayEnd)
+            }
+        }
+
+        val latestCheckin =
+            checkinDao.getLatestCheckinByHabitIdAndDateRange(habitId, startDate, endDate)
+        latestCheckin?.let {
+            checkinDao.deleteCheckin(it)
+        }
+    }
+
     // 获取习惯的打卡记录
     fun getCheckinsByHabitId(habitId: Long): Flow<List<Checkin>> {
         return checkinDao.getCheckinsByHabitId(habitId)

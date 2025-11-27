@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ddancn.dailydaisy.HabitViewModelFactory
+import com.ddancn.dailydaisy.data.entity.HabitFrequency
 import com.ddancn.dailydaisy.data.model.HabitWithData
 import com.ddancn.dailydaisy.ui.viewmodel.HabitViewModel
 
@@ -149,10 +150,10 @@ fun HabitCard(
             ) {
                 Text(
                     text = when (habitWithData.habit.frequency) {
-                        com.ddancn.dailydaisy.data.entity.HabitFrequency.DAILY -> "每日"
-                        com.ddancn.dailydaisy.data.entity.HabitFrequency.WEEKLY -> "每周"
-                        com.ddancn.dailydaisy.data.entity.HabitFrequency.MONTHLY -> "每月"
-                        com.ddancn.dailydaisy.data.entity.HabitFrequency.CUSTOM -> "自定义"
+                        HabitFrequency.DAILY -> "每日"
+                        HabitFrequency.WEEKLY -> "每周"
+                        HabitFrequency.MONTHLY -> "每月"
+                        HabitFrequency.CUSTOM -> "自定义"
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
@@ -22,8 +23,42 @@ class HabitViewModel(
     private val habitRepository: HabitRepository
 ) : ViewModel() {
 
-    // 习惯列表状态
-    val habitsWithData: Flow<List<HabitWithData>> = habitRepository.getHabitsWithTodayData()
+    // 当前选择的日期
+    private val _selectedDate = MutableStateFlow(java.time.LocalDate.now())
+    val selectedDate: StateFlow<java.time.LocalDate> = _selectedDate.asStateFlow()
+
+    // 习惯列表状态（根据选择的日期）
+    val habitsWithData: Flow<List<HabitWithData>> = _selectedDate.flatMapLatest { date ->
+        habitRepository.getHabitsWithCurrentPeriodData(date)
+    }
+    
+    /**
+     * 设置选择的日期
+     */
+    fun setSelectedDate(date: java.time.LocalDate) {
+        _selectedDate.value = date
+    }
+    
+    /**
+     * 选择前一天
+     */
+    fun selectPreviousDay() {
+        _selectedDate.value = _selectedDate.value.minusDays(1)
+    }
+    
+    /**
+     * 选择后一天
+     */
+    fun selectNextDay() {
+        _selectedDate.value = _selectedDate.value.plusDays(1)
+    }
+    
+    /**
+     * 重置到今天
+     */
+    fun resetToToday() {
+        _selectedDate.value = java.time.LocalDate.now()
+    }
 
     // 新建习惯的状态
     private val _uiState = MutableStateFlow(NewHabitUiState())
@@ -181,7 +216,19 @@ class HabitViewModel(
      */
     fun checkin(habitId: Long, count: Int = 1, note: String? = null) {
         viewModelScope.launch {
-            habitRepository.checkin(habitId, count, note)
+            val selectedDate = _selectedDate.value
+            val checkinTime = selectedDate.atTime(java.time.LocalTime.now())
+            habitRepository.checkin(habitId, checkinTime, count, note)
+        }
+    }
+    
+    /**
+     * 取消打卡
+     */
+    fun cancelCheckin(habitId: Long, frequency: HabitFrequency) {
+        viewModelScope.launch {
+            val selectedDate = _selectedDate.value
+            habitRepository.cancelCheckin(habitId, frequency, selectedDate)
         }
     }
 }

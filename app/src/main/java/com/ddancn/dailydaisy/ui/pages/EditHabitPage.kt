@@ -115,41 +115,35 @@ fun EditHabitPage(
             )
 
             // 习惯频率
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            Column(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                Text(
+                    text = "习惯频率",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "习惯频率",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
                     HabitFrequency.values().forEach { frequency ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = uiState.frequency == frequency,
-                                onClick = { viewModel.updateFrequency(frequency) }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = when (frequency) {
-                                    HabitFrequency.DAILY -> "每日"
-                                    HabitFrequency.WEEKLY -> "每周"
-                                    HabitFrequency.MONTHLY -> "每月"
-                                    HabitFrequency.CUSTOM -> "自定义"
-                                },
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
+                        FilterChip(
+                            selected = uiState.frequency == frequency,
+                            onClick = { viewModel.updateFrequency(frequency) },
+                            label = {
+                                Text(
+                                    text = when (frequency) {
+                                        HabitFrequency.DAILY -> "每日"
+                                        HabitFrequency.WEEKLY -> "每周"
+                                        HabitFrequency.MONTHLY -> "每月"
+                                        HabitFrequency.CUSTOM -> "自定义"
+                                    }
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -169,7 +163,12 @@ fun EditHabitPage(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     Text(
-                        text = "每天完成多少次这个习惯",
+                        text = when (uiState.frequency) {
+                            HabitFrequency.DAILY -> "每天完成多少次这个习惯"
+                            HabitFrequency.WEEKLY -> "每周完成多少次这个习惯"
+                            HabitFrequency.MONTHLY -> "每月完成多少次这个习惯"
+                            HabitFrequency.CUSTOM -> "完成多少次这个习惯"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -191,8 +190,9 @@ fun EditHabitPage(
                         }
                         Text(
                             text = "${uiState.targetCount}",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                         IconButton(
