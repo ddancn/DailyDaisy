@@ -1,5 +1,7 @@
 package com.ddancn.dailydaisy.ui.pages
 
+import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,63 +11,103 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ddancn.dailydaisy.HabitViewModelFactory
 import com.ddancn.dailydaisy.data.model.HabitWithData
+import com.ddancn.dailydaisy.ui.viewmodel.HabitViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitsPage() {
-    var habits by remember { mutableStateOf<List<HabitWithData>>(emptyList()) }
+fun HabitsPage(
+    viewModel: HabitViewModel = viewModel(factory = HabitViewModelFactory)
+) {
+    var showNewHabitPage by remember { mutableStateOf(false) }
+    var editingHabit by remember { mutableStateOf<HabitWithData?>(null) }
+    val habitsWithData by viewModel.habitsWithData.collectAsState(initial = emptyList())
+    val context = LocalContext.current
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("我的习惯", fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = { /* TODO: 添加习惯 */ }) {
-                        Icon(Icons.Filled.Add, contentDescription = "添加习惯")
-                    }
-                }
+    when {
+        editingHabit != null -> {
+            val currentHabit = editingHabit!!
+            EditHabitPage(
+                habitWithData = currentHabit,
+                onBack = { editingHabit = null },
+                onSuccess = { message ->
+                    editingHabit = null
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                },
+                viewModel = viewModel
             )
         }
-    ) { paddingValues ->
-        if (habits.isEmpty()) {
-            // 空状态
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "还没有习惯",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "点击右上角的 + 按钮添加你的第一个习惯",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+
+        showNewHabitPage -> {
+            NewHabitPage(
+                onBack = { showNewHabitPage = false },
+                onSuccess = { message ->
+                    showNewHabitPage = false
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                },
+                viewModel = viewModel
+            )
+        }
+
+        else -> {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("我的习惯", fontWeight = FontWeight.Bold) },
+                        actions = {
+                            IconButton(onClick = { showNewHabitPage = true }) {
+                                Icon(Icons.Filled.Add, contentDescription = "添加习惯")
+                            }
+                        }
                     )
                 }
-            }
-        } else {
-            // 习惯列表
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(habits) { habitWithData ->
-                    HabitCard(habitWithData = habitWithData)
+            ) { paddingValues ->
+                if (habitsWithData.isEmpty()) {
+                    // 空状态
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "还没有习惯",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "点击右上角的 + 按钮添加你的第一个习惯",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    // 习惯列表
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(habitsWithData) { habitWithData ->
+                            HabitCard(
+                                habitWithData = habitWithData,
+                                onClick = { editingHabit = habitWithData }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -74,76 +116,53 @@ fun HabitsPage() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitCard(habitWithData: HabitWithData) {
+fun HabitCard(
+    habitWithData: HabitWithData,
+    onClick: () -> Unit = {}
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = habitWithData.habit.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    habitWithData.habit.description?.let { description ->
-                        Text(
-                            text = description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                // 打卡按钮
-                Button(
-                    onClick = { /* TODO: 打卡 */ },
-                    enabled = !habitWithData.isTodayCompleted()
-                ) {
-                    Text(if (habitWithData.isTodayCompleted()) "已完成" else "打卡")
-                }
+            Text(
+                text = habitWithData.habit.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            habitWithData.habit.description?.let { description ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
             Spacer(modifier = Modifier.height(8.dp))
-
-            // 进度信息
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "今日进度: ${habitWithData.todayCheckinCount}/${habitWithData.habit.targetCount}",
+                    text = when (habitWithData.habit.frequency) {
+                        com.ddancn.dailydaisy.data.entity.HabitFrequency.DAILY -> "每日"
+                        com.ddancn.dailydaisy.data.entity.HabitFrequency.WEEKLY -> "每周"
+                        com.ddancn.dailydaisy.data.entity.HabitFrequency.MONTHLY -> "每月"
+                        com.ddancn.dailydaisy.data.entity.HabitFrequency.CUSTOM -> "自定义"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
                 Text(
-                    text = "${(habitWithData.getTodayCompletionRate() * 100).toInt()}%",
+                    text = "目标: ${habitWithData.habit.targetCount}次",
                     style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (habitWithData.isTodayCompleted())
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            // 进度条
-            LinearProgressIndicator(
-                progress = habitWithData.getTodayCompletionRate(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
         }
     }
 }

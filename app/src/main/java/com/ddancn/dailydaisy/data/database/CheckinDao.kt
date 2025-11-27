@@ -24,6 +24,10 @@ interface CheckinDao {
     @Query("SELECT SUM(count) FROM checkins WHERE habitId = :habitId AND date(checkinTime) = date(:date)")
     suspend fun getTotalCountByHabitIdAndDate(habitId: Long, date: LocalDate): Int?
     
+    // 获取今日所有打卡记录（用于监听变化）
+    @Query("SELECT * FROM checkins WHERE date(checkinTime) = date(:date)")
+    fun getTodayCheckins(date: LocalDate): Flow<List<Checkin>>
+    
     @Query("SELECT * FROM checkins WHERE habitId = :habitId AND checkinTime >= :startDate AND checkinTime <= :endDate ORDER BY checkinTime DESC")
     suspend fun getCheckinsByHabitIdAndDateRange(habitId: Long, startDate: LocalDateTime, endDate: LocalDateTime): List<Checkin>
     

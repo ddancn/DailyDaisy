@@ -7,6 +7,8 @@ import com.ddancn.dailydaisy.data.entity.Checkin
 import com.ddancn.dailydaisy.data.model.HabitWithData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -25,14 +27,26 @@ class HabitRepository(
     // 获取激活的习惯
     fun getActiveHabits(): Flow<List<Habit>> = habitDao.getActiveHabits()
     
+    // 根据ID获取习惯
+    suspend fun getHabitById(habitId: Long): Habit? {
+        return habitDao.getHabitById(habitId)
+    }
+    
     // 获取习惯及其今日数据
     fun getHabitsWithTodayData(): Flow<List<HabitWithData>> {
-        return habitDao.getActiveHabits().combine(
-            getTodayCheckinCounts()
-        ) { habits, checkinCounts ->
+        val today = LocalDate.now()
+        // 同时监听习惯列表和今日打卡记录的变化
+        return combine(
+            habitDao.getActiveHabits(),
+            checkinDao.getTodayCheckins(today)
+        ) { habits, todayCheckins ->
+            // 创建习惯ID到打卡次数的映射
+            val checkinCountMap = todayCheckins
+                .groupBy { it.habitId }
+                .mapValues { (_, checkins) -> checkins.sumOf { it.count } }
+            
             habits.map { habit ->
-                val todayCheckinCount = checkinCounts[habit.id] ?: 0
-                
+                val todayCheckinCount = checkinCountMap[habit.id] ?: 0
                 HabitWithData(
                     habit = habit,
                     isCheckedToday = todayCheckinCount > 0,
@@ -40,13 +54,6 @@ class HabitRepository(
                 )
             }
         }
-    }
-    
-    // 获取今日打卡次数
-    private fun getTodayCheckinCounts(): Flow<Map<Long, Int>> {
-        // 这里需要实现获取今日打卡次数的逻辑
-        // 暂时返回空Map，后续实现
-        return kotlinx.coroutines.flow.flowOf(emptyMap())
     }
     
     // 插入习惯
