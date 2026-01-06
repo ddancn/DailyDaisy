@@ -225,10 +225,10 @@ class HabitViewModel(
     /**
      * 取消打卡
      */
-    fun cancelCheckin(habitId: Long, frequency: HabitFrequency) {
+    fun cancelCheckin(habitId: Long) {
         viewModelScope.launch {
             val selectedDate = _selectedDate.value
-            habitRepository.cancelCheckin(habitId, frequency, selectedDate)
+            habitRepository.cancelCheckin(habitId, selectedDate)
         }
     }
 }

@@ -2,6 +2,7 @@ package com.ddancn.dailydaisy.ui.pages
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -54,35 +55,33 @@ fun HomePage(
                 .padding(paddingValues)
         ) {
             // 日期选择器
-            Card(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { viewModel.selectPreviousDay() }
-                    ) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "前一天")
-                    }
-                    Text(
-                        text = dateText,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.inverseOnSurface,
+                        shape = MaterialTheme.shapes.small
                     )
-                    IconButton(
-                        onClick = { viewModel.selectNextDay() },
-                        enabled = selectedDate.isBefore(today)
-                    ) {
-                        Icon(Icons.Filled.ArrowForward, contentDescription = "后一天")
-                    }
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { viewModel.selectPreviousDay() }
+                ) {
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "前一天")
+                }
+                Text(
+                    text = dateText,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(
+                    onClick = { viewModel.selectNextDay() },
+                    enabled = selectedDate.isBefore(today)
+                ) {
+                    Icon(Icons.Filled.ArrowForward, contentDescription = "后一天")
                 }
             }
             
@@ -124,7 +123,7 @@ fun HomePage(
                         CheckinCard(
                             habitWithData = habitWithData,
                             onCheckin = { viewModel.checkin(habitWithData.habit.id) },
-                            onCancelCheckin = { viewModel.cancelCheckin(habitWithData.habit.id, habitWithData.habit.frequency) }
+                            onCancelCheckin = { viewModel.cancelCheckin(habitWithData.habit.id) }
                         )
                     }
                 }
@@ -180,19 +179,29 @@ fun CheckinCard(
                     )
                 }
 
-                // 打卡/已完成按钮
-                Button(
-                    onClick = if (habitWithData.isTodayCompleted()) onCancelCheckin else onCheckin,
-                    colors = if (habitWithData.isTodayCompleted()) {
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.tertiary,
-                            contentColor = MaterialTheme.colorScheme.onTertiary
-                        )
-                    } else {
-                        ButtonDefaults.buttonColors()
-                    }
+                // 按钮区域：两个按钮，撤销按钮只在有打卡记录时显示
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(if (habitWithData.isTodayCompleted()) "已完成" else "打卡")
+                    // 打卡按钮：一直显示
+                    Button(
+                        onClick = onCheckin
+                    ) {
+                        Text("打卡")
+                    }
+                    
+                    // 撤销按钮：只有在有打卡记录时显示
+                    if (habitWithData.isCheckedToday) {
+                        OutlinedButton(
+                            onClick = onCancelCheckin,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("撤销")
+                        }
+                    }
                 }
             }
 

@@ -85,11 +85,14 @@ class HabitRepository(
                     HabitFrequency.CUSTOM -> dailyCountMap[habit.id] ?: 0 // 自定义暂时按日统计
                 }
                 
+                // isCheckedToday 应该基于当天是否有打卡记录，而不是周期内是否有打卡
+                val todayCheckinCount = dailyCountMap[habit.id] ?: 0
+                
                 val totalCount = totalCountMap[habit.id] ?: 0
                 
                 HabitWithData(
                     habit = habit,
-                    isCheckedToday = checkinCount > 0,
+                    isCheckedToday = todayCheckinCount > 0,  // 只判断当天是否有打卡
                     todayCheckinCount = checkinCount,
                     totalCheckinCount = totalCount
                 )
@@ -134,48 +137,14 @@ class HabitRepository(
         checkinDao.insertCheckin(checkin)
     }
 
-    // 取消打卡（删除当前周期内最新的打卡记录）
-    suspend fun cancelCheckin(habitId: Long, frequency: HabitFrequency) {
-        cancelCheckin(habitId, frequency, LocalDate.now())
-    }
-
-    // 取消打卡（指定日期）
-    suspend fun cancelCheckin(habitId: Long, frequency: HabitFrequency, targetDate: LocalDate) {
-        // 获取习惯对象以获取自定义周期信息
-        val habit = habitDao.getHabitById(habitId) ?: return
-
-        val (startDate, endDate) = when (frequency) {
-            HabitFrequency.DAILY -> {
-                val dayStart = targetDate.atStartOfDay()
-                val dayEnd = dayStart.plusDays(1)
-                Pair(dayStart, dayEnd)
-            }
-
-            HabitFrequency.WEEKLY -> {
-                val weekStart =
-                    targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                        .atStartOfDay()
-                val weekEnd = weekStart.plusDays(7)
-                Pair(weekStart, weekEnd)
-            }
-
-            HabitFrequency.MONTHLY -> {
-                val monthStart =
-                    targetDate.with(TemporalAdjusters.firstDayOfMonth()).atStartOfDay()
-                val monthEnd = monthStart.plusMonths(1)
-                Pair(monthStart, monthEnd)
-            }
-
-            HabitFrequency.CUSTOM -> {
-                // 自定义暂时按日处理
-                val dayStart = targetDate.atStartOfDay()
-                val dayEnd = dayStart.plusDays(1)
-                Pair(dayStart, dayEnd)
-            }
-        }
-
+    // 取消打卡（删除指定日期当天的打卡记录）
+    suspend fun cancelCheckin(habitId: Long, targetDate: LocalDate) {
+        // 只删除指定日期当天的打卡记录
+        val dayStart = targetDate.atStartOfDay()
+        val dayEnd = dayStart.plusDays(1)
+        
         val latestCheckin =
-            checkinDao.getLatestCheckinByHabitIdAndDateRange(habitId, startDate, endDate)
+            checkinDao.getLatestCheckinByHabitIdAndDateRange(habitId, dayStart, dayEnd)
         latestCheckin?.let {
             checkinDao.deleteCheckin(it)
         }
