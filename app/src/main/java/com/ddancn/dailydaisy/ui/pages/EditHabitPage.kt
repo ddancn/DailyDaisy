@@ -54,6 +54,7 @@ fun EditHabitPage(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.statusBarsPadding(),
                 title = { Text("编辑习惯", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = {

@@ -59,6 +59,7 @@ fun HabitsPage(
             Scaffold(
                 topBar = {
                     TopAppBar(
+                        modifier = Modifier.statusBarsPadding(),
                         title = { Text("我的习惯", fontWeight = FontWeight.Bold) },
                         actions = {
                             IconButton(onClick = { showNewHabitPage = true }) {

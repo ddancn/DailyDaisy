@@ -45,6 +45,7 @@ fun HomePage(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.statusBarsPadding(),
                 title = { Text("打卡", fontWeight = FontWeight.Bold) }
             )
         }

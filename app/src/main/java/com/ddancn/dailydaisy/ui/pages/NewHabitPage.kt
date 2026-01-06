@@ -47,6 +47,7 @@ fun NewHabitPage(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.statusBarsPadding(),
                 title = { Text("新建习惯", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = {

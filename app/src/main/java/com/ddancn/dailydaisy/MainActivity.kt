@@ -3,6 +3,7 @@ package com.ddancn.dailydaisy
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +34,10 @@ import com.ddancn.dailydaisy.ui.pages.SettingsPage
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // 启用沉浸式状态栏
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        
         setContent {
             DailyDaisyTheme {
                 Surface(
