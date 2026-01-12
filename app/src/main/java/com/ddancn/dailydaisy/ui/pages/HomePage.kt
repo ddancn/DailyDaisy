@@ -4,8 +4,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
@@ -13,6 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -113,11 +116,13 @@ fun HomePage(
                 }
             } else {
                 // 打卡列表
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxSize()
                         .weight(1f),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(habitsWithData) { habitWithData ->
@@ -147,61 +152,79 @@ fun CheckinCard(
         label = "progress_animation"
     )
     
+    // 获取习惯的主题色，如果没有则使用默认主题色
+    val habitColor = habitWithData.habit.color?.let { Color(it) } 
+        ?: MaterialTheme.colorScheme.primary
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = habitColor.copy(alpha = 0.1f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+        )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = habitWithData.habit.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = habitColor,
+                    maxLines = 1,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                habitWithData.habit.description?.let { description ->
                     Text(
-                        text = habitWithData.habit.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    habitWithData.habit.description?.let { description ->
-                        Text(
-                            text = description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "累计打卡 ${habitWithData.totalCheckinCount} 次",
+                        text = description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "累计 ${habitWithData.totalCheckinCount} 次",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-                // 按钮区域：两个按钮，撤销按钮只在有打卡记录时显示
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 按钮区域：水平排列
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // 打卡按钮：一直显示
+                Button(
+                    onClick = onCheckin,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = habitColor
+                    )
                 ) {
-                    // 打卡按钮：一直显示
-                    Button(
-                        onClick = onCheckin
+                    Text("打卡", style = MaterialTheme.typography.bodySmall)
+                }
+                
+                // 撤销按钮：只有在有打卡记录时显示
+                if (habitWithData.isCheckedToday) {
+                    OutlinedButton(
+                        onClick = onCancelCheckin,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
                     ) {
-                        Text("打卡")
-                    }
-                    
-                    // 撤销按钮：只有在有打卡记录时显示
-                    if (habitWithData.isCheckedToday) {
-                        OutlinedButton(
-                            onClick = onCancelCheckin,
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text("撤销")
-                        }
+                        Text("撤销", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -209,41 +232,45 @@ fun CheckinCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // 进度信息
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = when (habitWithData.habit.frequency) {
-                        HabitFrequency.DAILY -> "今日进度: ${habitWithData.todayCheckinCount}/${habitWithData.habit.targetCount}"
-                        HabitFrequency.WEEKLY -> "本周进度: ${habitWithData.todayCheckinCount}/${habitWithData.habit.targetCount}"
-                        HabitFrequency.MONTHLY -> "本月进度: ${habitWithData.todayCheckinCount}/${habitWithData.habit.targetCount}"
-                        HabitFrequency.CUSTOM -> "当前进度: ${habitWithData.todayCheckinCount}/${habitWithData.habit.targetCount}"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = when (habitWithData.habit.frequency) {
+                            HabitFrequency.DAILY -> "今日"
+                            HabitFrequency.WEEKLY -> "本周"
+                            HabitFrequency.MONTHLY -> "本月"
+                            HabitFrequency.CUSTOM -> "当前"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-                Text(
-                    text = "${(habitWithData.getTodayCompletionRate() * 100).toInt()}%",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (habitWithData.isTodayCompleted())
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    Text(
+                        text = "${habitWithData.todayCheckinCount}/${habitWithData.habit.targetCount}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (habitWithData.isTodayCompleted())
+                            habitColor
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 进度条（使用动画值）
+                LinearProgressIndicator(
+                    progress = animatedProgress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    color = habitColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
-
-            // 进度条（使用动画值）
-            LinearProgressIndicator(
-                progress = animatedProgress,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
         }
     }
 } 

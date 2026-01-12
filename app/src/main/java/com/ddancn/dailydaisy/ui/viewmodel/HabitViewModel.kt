@@ -93,6 +93,13 @@ class HabitViewModel(
     }
 
     /**
+     * 更新习惯颜色
+     */
+    fun updateColor(color: Int?) {
+        _uiState.value = _uiState.value.copy(color = color)
+    }
+
+    /**
      * 更新开始日期
      */
     fun updateStartDate(date: LocalDateTime) {
@@ -115,7 +122,8 @@ class HabitViewModel(
             description = habit.description ?: "",
             frequency = habit.frequency,
             targetCount = habit.targetCount,
-            startDate = habit.startDate
+            startDate = habit.startDate,
+            color = habit.color
         )
     }
 
@@ -138,7 +146,7 @@ class HabitViewModel(
             name = state.name.trim(),
             description = state.description.takeIf { it.isNotBlank() },
             icon = null,
-            color = null,
+            color = state.color,
             frequency = state.frequency,
             targetCount = state.targetCount,
             isActive = true,
@@ -182,6 +190,7 @@ class HabitViewModel(
             val updatedHabit = existingHabit.copy(
                 name = state.name.trim(),
                 description = state.description.takeIf { it.isNotBlank() },
+                color = state.color,
                 frequency = state.frequency,
                 targetCount = state.targetCount,
                 updatedAt = LocalDateTime.now()
@@ -241,5 +250,6 @@ data class NewHabitUiState(
     val description: String = "",
     val frequency: HabitFrequency = HabitFrequency.DAILY,
     val targetCount: Int = 1,
-    val startDate: LocalDateTime = LocalDateTime.now()
+    val startDate: LocalDateTime = LocalDateTime.now(),
+    val color: Int? = null
 )

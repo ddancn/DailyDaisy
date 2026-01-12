@@ -4,13 +4,28 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.size
@@ -18,13 +33,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ddancn.dailydaisy.HabitViewModelFactory
 import com.ddancn.dailydaisy.data.entity.HabitFrequency
 import com.ddancn.dailydaisy.data.model.HabitWithData
+import com.ddancn.dailydaisy.ui.theme.HabitColors
 import com.ddancn.dailydaisy.ui.viewmodel.HabitViewModel
 import kotlinx.coroutines.launch
 
 /**
  * 编辑习惯页面
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditHabitPage(
     habitWithData: HabitWithData,
@@ -37,6 +53,7 @@ fun EditHabitPage(
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var isColorExpanded by remember { mutableStateOf(false) }
 
     // 加载习惯数据到编辑状态
     LaunchedEffect(habitWithData.habit.id) {
@@ -145,6 +162,81 @@ fun EditHabitPage(
                             },
                             modifier = Modifier.weight(1f)
                         )
+                    }
+                }
+            }
+
+            // 习惯颜色
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isColorExpanded = !isColorExpanded },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "习惯颜色",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        // 显示已选颜色预览
+                        uiState.color?.let { colorInt ->
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(colorInt))
+                                    .border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        shape = CircleShape
+                                    )
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = if (isColorExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = if (isColorExpanded) "收起" else "展开"
+                    )
+                }
+                
+                AnimatedVisibility(
+                    visible = isColorExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        HabitColors.forEach { color ->
+                            val colorInt = color.toArgb()
+                            val isSelected = uiState.color == colorInt
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .border(
+                                        width = if (isSelected) 3.dp else 0.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = CircleShape
+                                    )
+                                    .clickable {
+                                        viewModel.updateColor(if (isSelected) null else colorInt)
+                                    }
+                            )
+                        }
                     }
                 }
             }
