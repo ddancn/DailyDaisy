@@ -1,5 +1,6 @@
 package com.ddancn.dailydaisy.ui.pages
 
+import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -8,14 +9,16 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,11 +34,14 @@ import java.time.format.DateTimeFormatter
 fun HomePage(
     viewModel: HabitViewModel = viewModel(factory = HabitViewModelFactory)
 ) {
-    val habitsWithData by viewModel.habitsWithData.collectAsState(initial = emptyList())
+    var showNewHabitPage by remember { mutableStateOf(false) }
+    var editingHabit by remember { mutableStateOf<HabitWithData?>(null) }
+    val habitsWithData by viewModel.habitsWithData.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
     val today = LocalDate.now()
     val isToday = selectedDate == today
-    
+    val context = LocalContext.current
+
     // 格式化日期显示
     val dateFormatter = DateTimeFormatter.ofPattern("M月d日")
     val weekDayFormatter = DateTimeFormatter.ofPattern("E", java.util.Locale("zh", "CN"))
@@ -45,92 +51,126 @@ fun HomePage(
         "${selectedDate.format(dateFormatter)} ${selectedDate.format(weekDayFormatter)}"
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                modifier = Modifier.statusBarsPadding(),
-                title = { Text("打卡", fontWeight = FontWeight.Bold) }
+    when {
+        editingHabit != null -> {
+            val currentHabit = editingHabit!!
+            EditHabitPage(
+                habitWithData = currentHabit,
+                onBack = { editingHabit = null },
+                onSuccess = { message ->
+                    editingHabit = null
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                },
+                viewModel = viewModel
             )
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // 日期选择器
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                        shape = MaterialTheme.shapes.small
+
+        showNewHabitPage -> {
+            NewHabitPage(
+                onBack = { showNewHabitPage = false },
+                onSuccess = { message ->
+                    showNewHabitPage = false
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                },
+                viewModel = viewModel
+            )
+        }
+
+        else -> {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        modifier = Modifier.statusBarsPadding(),
+                        title = { Text("打卡", fontWeight = FontWeight.Bold) },
+                        actions = {
+                            IconButton(onClick = { showNewHabitPage = true }) {
+                                Icon(Icons.Filled.Add, contentDescription = "新建习惯")
+                            }
+                        }
                     )
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { viewModel.selectPreviousDay() }
-                ) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "前一天")
                 }
-                Text(
-                    text = dateText,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(
-                    onClick = { viewModel.selectNextDay() },
-                    enabled = selectedDate.isBefore(today)
-                ) {
-                    Icon(Icons.Filled.ArrowForward, contentDescription = "后一天")
-                }
-            }
-            
-            if (habitsWithData.isEmpty()) {
-                // 空状态
-                Box(
+            ) { paddingValues ->
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .padding(paddingValues)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                    // 日期选择器
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.inverseOnSurface,
+                                shape = MaterialTheme.shapes.small
+                            )
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        IconButton(
+                            onClick = { viewModel.selectPreviousDay() }
+                        ) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "前一天")
+                        }
                         Text(
-                            text = "还没有习惯",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = dateText,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "去习惯页面添加你的第一个习惯吧",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        IconButton(
+                            onClick = { viewModel.selectNextDay() },
+                            enabled = selectedDate.isBefore(today)
+                        ) {
+                            Icon(Icons.Filled.ArrowForward, contentDescription = "后一天")
+                        }
                     }
-                }
-            } else {
-                // 打卡列表
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(habitsWithData) { habitWithData ->
-                        CheckinCard(
-                            habitWithData = habitWithData,
-                            onCheckin = { viewModel.checkin(habitWithData.habit.id) },
-                            onCancelCheckin = { viewModel.cancelCheckin(habitWithData.habit.id) }
-                        )
+
+                    if (habitsWithData.isEmpty()) {
+                        // 空状态
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "还没有习惯",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "点击右上角的 + 按钮添加你的第一个习惯",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        // 打卡列表
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(habitsWithData) { habitWithData ->
+                                CheckinCard(
+                                    habitWithData = habitWithData,
+                                    onCheckin = { viewModel.checkin(habitWithData.habit.id) },
+                                    onCancelCheckin = { viewModel.cancelCheckin(habitWithData.habit.id) },
+                                    onEdit = { editingHabit = habitWithData }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -138,12 +178,14 @@ fun HomePage(
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckinCard(
     habitWithData: HabitWithData,
     onCheckin: () -> Unit,
-    onCancelCheckin: () -> Unit = {}
+    onCancelCheckin: () -> Unit = {},
+    onEdit: () -> Unit = {}
 ) {
     // 使用动画来平滑过渡进度条
     val animatedProgress by animateFloatAsState(
@@ -169,15 +211,32 @@ fun CheckinCard(
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = habitWithData.habit.name,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = habitColor,
                     maxLines = 1,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 )
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "编辑",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
+                }
+            }
+            Column(modifier = Modifier.fillMaxWidth()) {
                 habitWithData.habit.description?.let { description ->
                     Text(
                         text = description,

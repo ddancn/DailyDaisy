@@ -12,7 +12,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.SharingStarted
 import java.time.LocalDateTime
 
 /**
@@ -27,10 +30,14 @@ class HabitViewModel(
     private val _selectedDate = MutableStateFlow(java.time.LocalDate.now())
     val selectedDate: StateFlow<java.time.LocalDate> = _selectedDate.asStateFlow()
 
-    // 习惯列表状态（根据选择的日期）
-    val habitsWithData: Flow<List<HabitWithData>> = _selectedDate.flatMapLatest { date ->
+    // 习惯列表状态（根据选择的日期），使用 stateIn 保留状态
+    val habitsWithData: StateFlow<List<HabitWithData>> = _selectedDate.flatMapLatest { date ->
         habitRepository.getHabitsWithCurrentPeriodData(date)
-    }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily, // 懒启动，但一旦启动就保持运行，状态会保留
+        initialValue = emptyList()
+    )
     
     /**
      * 设置选择的日期
